@@ -9,6 +9,15 @@ import {
 } from "firebase/firestore";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  Legend,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -122,8 +131,27 @@ const Lines = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines]);
 
+  const data = Object.keys(cal).map((key) => ({
+    name: key,
+    value: cal[key].sum,
+  }));
+
+  // const data = [
+  //   { name: "2020-01-01", value: 1 },
+  //   { name: "2020-01-02", value: 2 },
+  // ];
+
   return (
     <div>
+      <LineChart width={600} height={200} data={data}>
+        <CartesianGrid stroke="#ccc" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Line type="stepAfter" dataKey="value" stroke="#fff" strokeWidth={4} />
+      </LineChart>
+      <div>Totalt {Math.round(sum)} kr/dag</div>
       <ol>
         {Object.keys(cal).map((key, index) => (
           <li key={index}>
@@ -131,7 +159,6 @@ const Lines = () => {
           </li>
         ))}
       </ol>
-      <div>Totalt {Math.round(sum)} kr/dag</div>
     </div>
   );
 };

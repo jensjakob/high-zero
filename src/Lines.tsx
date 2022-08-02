@@ -39,6 +39,7 @@ interface ILine {
   value: number;
   times_per_year: number;
   end: Timestamp;
+  // TODO: Add start
 }
 
 interface IDay {
@@ -98,6 +99,32 @@ const Lines = () => {
     }
   }
 
+  function addSumToObject(object: Object, fieldToSum: string) {
+    // return object.reduce((previousValue, currentValue) => {
+    //   return previousValue + currentValue[fieldToSum];
+    // }, 0);
+    // console.debug(object);
+    // let newObject: Object;
+    // // let sum = 0;
+    // for (const line in Object.keys(object)) {
+    //   if (line) {
+    //     newObject[line] = sum;
+    //   }
+    //   // sum += item[fieldToSum];
+    //   // newObject = {...line, added: sum; // + object[line][fieldToSum];
+    // }
+    // return Object.keys(cal).map((item) => {
+    // sum += item[fieldToSum];
+    // return { ...item, sum };
+    // return item;
+    // });
+    // Object.keys(cal).map((key, index) => (
+    //   <li key={index}>
+    //     {key}: {cal[key].sum.toFixed(2)} kr/dag
+    //   </li>
+    // ))
+  }
+
   useEffect(() => {
     setSum(0);
     if (lines) {
@@ -127,14 +154,39 @@ const Lines = () => {
 
         setCal({ ...calendar });
       }
+
+      console.debug(addSumToObject(cal, "value"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines]);
 
-  const data = Object.keys(cal).map((key) => ({
-    name: key,
-    value: cal[key].sum,
-  }));
+  // const data = Object.keys(cal).map((key) => ({
+  //   name: key,
+  //   value: cal[key].sum,
+  // }));
+
+  let added = 0;
+
+  // function mapFunction(item: any) {
+  //   added += cal[item].sum;
+  //   return {
+  //     name: item.name,
+  //     value: cal[item].sum,
+  //     added: added,
+  //   };
+  // }
+  // const data = Object.keys(cal).map(mapFunction);
+
+  const data = Object.keys(cal).map((item) => {
+    added += cal[item].sum;
+    return {
+      name: item,
+      value: cal[item].sum,
+      added: added,
+    };
+  });
+
+  console.debug(data);
 
   // const data = [
   //   { name: "2020-01-01", value: 1 },
@@ -149,18 +201,20 @@ const Lines = () => {
         <YAxis />
         <Tooltip />
         <Legend />
-        <Line type="stepAfter" dataKey="value" stroke="#fff" strokeWidth={4} />
+        <Line type="stepAfter" dataKey="added" stroke="#fff" strokeWidth={2} />
       </LineChart>
+      <h2>{format(theDayDate, "yyyy-MM-dd")}</h2>
       <div>Totalt {Math.round(sum)} kr/dag</div>
-      <ol>
-        {Object.keys(cal).map((key, index) => (
-          <li key={index}>
-            {key}: {cal[key].sum.toFixed(2)} kr/dag
-          </li>
-        ))}
-      </ol>
     </div>
   );
 };
+
+// <ol>
+// {Object.keys(cal).map((key, index) => (
+//   <li key={index}>
+//     {key}: {cal[key].sum.toFixed(2)} kr/dag
+//   </li>
+// ))}
+// </ol>
 
 export default Lines;

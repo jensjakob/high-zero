@@ -13,7 +13,6 @@ import {
   LineChart,
   Line,
   CartesianGrid,
-  Legend,
   Tooltip,
   XAxis,
   YAxis,
@@ -38,8 +37,8 @@ interface ILine {
   name: string;
   value: number;
   times_per_year: number;
+  start: Timestamp;
   end: Timestamp;
-  // TODO: Add start
 }
 
 interface IDay {
@@ -50,10 +49,10 @@ interface IDay {
 
 const Lines = () => {
   const [lines, setLines] = useState<ILine[]>();
-  const [sum, setSum] = useState(0);
   const [cal, setCal] = useState<IDay>({});
 
   const theDayDate = new Date();
+  const today = new Date(new Date().toDateString());
   const firebaseDate = Timestamp.fromDate(theDayDate);
 
   let calendar: IDay = {};
@@ -61,12 +60,7 @@ const Lines = () => {
   useEffect(() => {
     const collectionRef = collection(db, "lines");
 
-    const q = query(
-      collectionRef,
-      // TODO: Add support for starts in the future
-      // where("start", "<=", firebaseDate),
-      where("end", ">=", firebaseDate)
-    );
+    const q = query(collectionRef, where("end", ">=", firebaseDate));
 
     const unsubscribe = onSnapshot(q, (snapshot) =>
       setLines(
@@ -75,6 +69,7 @@ const Lines = () => {
           name: doc.data().name,
           value: doc.data().value,
           times_per_year: doc.data().times_per_year,
+          start: doc.data().start,
           end: doc.data().end,
         }))
       )
@@ -89,7 +84,7 @@ const Lines = () => {
     endDate: Date,
     callback: (date: Date) => void
   ) {
-    let currentDate = startDate;
+    let currentDate = new Date(startDate);
 
     while (currentDate < endDate) {
       callback(currentDate);
@@ -99,83 +94,37 @@ const Lines = () => {
     }
   }
 
-  function addSumToObject(object: Object, fieldToSum: string) {
-    // return object.reduce((previousValue, currentValue) => {
-    //   return previousValue + currentValue[fieldToSum];
-    // }, 0);
-    // console.debug(object);
-    // let newObject: Object;
-    // // let sum = 0;
-    // for (const line in Object.keys(object)) {
-    //   if (line) {
-    //     newObject[line] = sum;
-    //   }
-    //   // sum += item[fieldToSum];
-    //   // newObject = {...line, added: sum; // + object[line][fieldToSum];
-    // }
-    // return Object.keys(cal).map((item) => {
-    // sum += item[fieldToSum];
-    // return { ...item, sum };
-    // return item;
-    // });
-    // Object.keys(cal).map((key, index) => (
-    //   <li key={index}>
-    //     {key}: {cal[key].sum.toFixed(2)} kr/dag
-    //   </li>
-    // ))
-  }
-
   useEffect(() => {
-    setSum(0);
     if (lines) {
-      let endDate = new Date(theDayDate);
-      endDate.setFullYear(theDayDate.getFullYear() + 1);
+      // One year from the day
+      let endDate = new Date(
+        new Date().setFullYear(new Date().getFullYear() + 1)
+      );
 
       // Initiate all days in the right order
-      // TODO: Use fuction
-      let currentDate = new Date(theDayDate);
-      while (currentDate < endDate) {
+      forEachDay(theDayDate, endDate, (currentDate) => {
         calendar[format(currentDate, "yyyy-MM-dd")] = {
           sum: 0,
         };
-
-        // Add one day and loop
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
+      });
 
       for (const line of lines) {
         const dayValue = (line.value * line.times_per_year) / 365;
-        setSum((prev) => prev + dayValue);
 
-        forEachDay(theDayDate, line.end.toDate(), (date) => {
-          // TODO: Don't overwrite
-          calendar[format(date, "yyyy-MM-dd")] = { sum: dayValue };
+        forEachDay(today, line.end.toDate(), (date) => {
+          if (line.start.toDate() <= date) {
+            const oldValue = calendar[format(date, "yyyy-MM-dd")].sum;
+            calendar[format(date, "yyyy-MM-dd")] = { sum: dayValue + oldValue };
+          }
         });
 
         setCal({ ...calendar });
       }
-
-      console.debug(addSumToObject(cal, "value"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines]);
 
-  // const data = Object.keys(cal).map((key) => ({
-  //   name: key,
-  //   value: cal[key].sum,
-  // }));
-
   let added = 0;
-
-  // function mapFunction(item: any) {
-  //   added += cal[item].sum;
-  //   return {
-  //     name: item.name,
-  //     value: cal[item].sum,
-  //     added: added,
-  //   };
-  // }
-  // const data = Object.keys(cal).map(mapFunction);
 
   const data = Object.keys(cal).map((item) => {
     added += cal[item].sum;
@@ -186,25 +135,60 @@ const Lines = () => {
     };
   });
 
-  console.debug(data);
-
-  // const data = [
-  //   { name: "2020-01-01", value: 1 },
-  //   { name: "2020-01-02", value: 2 },
-  // ];
-
   return (
     <div>
       <LineChart width={600} height={200} data={data}>
         <CartesianGrid stroke="#ccc" />
-        <XAxis dataKey="name" />
-        <YAxis />
+        <XAxis dataKey="name" fontSize={10} />
+        <YAxis fontSize={10} />
         <Tooltip />
-        <Legend />
-        <Line type="stepAfter" dataKey="added" stroke="#fff" strokeWidth={2} />
+        <Line type="stepAfter" dataKey="added" strokeWidth={2} />
       </LineChart>
       <h2>{format(theDayDate, "yyyy-MM-dd")}</h2>
-      <div>Totalt {Math.round(sum)} kr/dag</div>
+      <table
+        style={{
+          width: "auto",
+          border: "solid 1px white",
+          borderSpacing: "20px",
+        }}
+      >
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Name</th>
+            <th>kr/day</th>
+            <th>Start</th>
+            <th>End</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines?.map((line) => (
+            <tr key={line.id}>
+              <td>{line.start.toDate() > theDayDate ? "WAIT 🚫" : ""}</td>
+              <td>{line.name}</td>
+              <td>{Math.round((line.times_per_year * line.value) / 365)} kr</td>
+              <td>{format(line.start.toDate(), "yyyy-MM-dd")}</td>
+              <td>{format(line.end.toDate(), "yyyy-MM-dd")}</td>
+              <td>
+                <button>Edit</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>
+              <button>Add</button>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {cal[format(theDayDate, "yyyy-MM-dd")] && (
+        <div>
+          Totalt: {Math.round(cal[format(theDayDate, "yyyy-MM-dd")].sum)} kr/dag
+        </div>
+      )}
     </div>
   );
 };

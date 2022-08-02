@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import {
   Timestamp,
@@ -9,8 +10,8 @@ import {
   doc,
   addDoc,
   deleteDoc,
+  orderBy,
 } from "firebase/firestore";
-import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   LineChart,
@@ -60,10 +61,21 @@ const Lines = () => {
 
   let calendar: IDay = {};
 
+  const inputRefName = useRef<HTMLInputElement>(null);
+  const inputRefValue = useRef<HTMLInputElement>(null);
+  const inputRefTimes = useRef<HTMLSelectElement>(null);
+  const inputRefStart = useRef<HTMLInputElement>(null);
+  const inputRefEnd = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const collectionRef = collection(db, "lines");
 
-    const q = query(collectionRef, where("end", ">=", firebaseDate));
+    const q = query(
+      collectionRef,
+      where("end", ">=", firebaseDate),
+      orderBy("end"),
+      orderBy("value")
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) =>
       setLines(
@@ -101,23 +113,33 @@ const Lines = () => {
     await deleteDoc(doc(db, "lines", ref));
   }
 
-  async function addLine() {
-    try {
-      // const docRef = await addDoc(collection(db, "lines"), {
-      await addDoc(collection(db, "lines"), {
-        name: "Ada",
-        value: "100",
-        times_per_year: "12",
-        start: today,
-        end: new Date(
-          today.getFullYear() + 1,
-          today.getMonth(),
-          today.getDate()
-        ),
-      });
-      // console.log("Document written with ID: ", docRef.id);
-    } catch (e) {
-      console.error("Error adding document: ", e);
+  async function addLine(event: { preventDefault: () => void }) {
+    event.preventDefault();
+
+    if (
+      inputRefName.current?.value &&
+      inputRefValue.current?.value &&
+      inputRefTimes.current?.value &&
+      inputRefStart.current?.value &&
+      inputRefEnd.current?.value
+    ) {
+      const data = {
+        name: inputRefName.current?.value,
+        value: inputRefValue.current?.value,
+        times_per_year: inputRefTimes.current?.value,
+        start: new Date(inputRefStart.current?.value),
+        end: new Date(inputRefEnd.current?.value),
+      };
+
+      console.debug(data);
+
+      try {
+        // const docRef = await addDoc(collection(db, "lines"), {
+        await addDoc(collection(db, "lines"), data);
+        // console.log("Document written with ID: ", docRef.id);
+      } catch (e) {
+        console.error("Error adding document: ", e);
+      }
     }
   }
 
@@ -172,60 +194,106 @@ const Lines = () => {
         <Line type="stepAfter" dataKey="added" strokeWidth={2} />
       </LineChart>
       <h2>{format(theDayDate, "yyyy-MM-dd")}</h2>
-      <table
-        style={{
-          width: "auto",
-          border: "solid 1px white",
-          borderSpacing: "20px",
-        }}
-      >
-        <thead>
-          <tr>
-            <th>Status</th>
-            <th>Name</th>
-            <th>kr/day</th>
-            <th>Start</th>
-            <th>End</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines?.map((line) => (
-            <tr key={line.id}>
-              <td>{line.start.toDate() > theDayDate ? "WAIT 🚫" : ""}</td>
-              <td>{line.name}</td>
-              <td>{Math.round((line.times_per_year * line.value) / 365)} kr</td>
-              <td>{format(line.start.toDate(), "yyyy-MM-dd")}</td>
-              <td>{format(line.end.toDate(), "yyyy-MM-dd")}</td>
+
+      <form onSubmit={addLine}>
+        <table
+          style={{
+            width: "auto",
+            border: "solid 1px white",
+            borderSpacing: "20px",
+          }}
+        >
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Name</th>
+              <th>kr/day</th>
+              <th>Start</th>
+              <th>End</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines?.map((line) => (
+              <tr key={line.id}>
+                <td>{line.start.toDate() > theDayDate ? "WAIT 🚫" : ""}</td>
+                <td>{line.name}</td>
+                <td>
+                  {Math.round((line.times_per_year * line.value) / 365)} kr (
+                  {Math.round(line.value).toString()} kr ×{line.times_per_year})
+                </td>
+                <td>{format(line.start.toDate(), "yyyy-MM-dd")}</td>
+                <td>{format(line.end.toDate(), "yyyy-MM-dd")}</td>
+                <td>
+                  <button type="button" onClick={() => deleteLine(line.id)}>
+                    X
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>New</td>
               <td>
-                <button onClick={() => deleteLine(line.id)}>Remove</button>
+                <input
+                  type="text"
+                  name="name"
+                  defaultValue="Name"
+                  ref={inputRefName}
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  name="value"
+                  defaultValue="100"
+                  ref={inputRefValue}
+                />
+                <select name="times_per_year" ref={inputRefTimes}>
+                  <option value="12">månadsvis</option>
+                  <option value="4">kvartal</option>
+                  <option value="3">4:e månad</option>
+                  <option value="1">per år</option>
+                </select>
+              </td>
+              <td>
+                <input
+                  type="date"
+                  name="start"
+                  defaultValue={format(
+                    new Date(new Date().getFullYear(), 0, 1),
+                    "yyyy-MM-dd"
+                  )}
+                  // defaultValue={format(theDayDate, "yyyy-MM-dd")}
+                  ref={inputRefStart}
+                />
+              </td>
+              <td>
+                <input
+                  type="date"
+                  name="end"
+                  defaultValue={format(
+                    new Date(new Date().getFullYear(), 11, 31),
+                    "yyyy-MM-dd"
+                  )}
+                  ref={inputRefEnd}
+                />
+              </td>
+              <td>
+                <button>Add</button>
               </td>
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td>
-              <button onClick={addLine}>Add</button>
-            </td>
-          </tr>
-        </tfoot>
-      </table>
+          </tfoot>
+        </table>
+      </form>
 
       {cal[format(theDayDate, "yyyy-MM-dd")] && (
         <div>
-          Totalt: {Math.round(cal[format(theDayDate, "yyyy-MM-dd")].sum)} kr/dag
+          Totalt: {cal[format(theDayDate, "yyyy-MM-dd")].sum.toFixed(2)} kr/dag
         </div>
       )}
     </div>
   );
 };
-
-// <ol>
-// {Object.keys(cal).map((key, index) => (
-//   <li key={index}>
-//     {key}: {cal[key].sum.toFixed(2)} kr/dag
-//   </li>
-// ))}
-// </ol>
 
 export default Lines;

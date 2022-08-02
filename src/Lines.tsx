@@ -6,6 +6,9 @@ import {
   query,
   where,
   onSnapshot,
+  doc,
+  addDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
@@ -94,6 +97,30 @@ const Lines = () => {
     }
   }
 
+  async function deleteLine(ref: string) {
+    await deleteDoc(doc(db, "lines", ref));
+  }
+
+  async function addLine() {
+    try {
+      // const docRef = await addDoc(collection(db, "lines"), {
+      await addDoc(collection(db, "lines"), {
+        name: "Ada",
+        value: "100",
+        times_per_year: "12",
+        start: today,
+        end: new Date(
+          today.getFullYear() + 1,
+          today.getMonth(),
+          today.getDate()
+        ),
+      });
+      // console.log("Document written with ID: ", docRef.id);
+    } catch (e) {
+      console.error("Error adding document: ", e);
+    }
+  }
+
   useEffect(() => {
     if (lines) {
       // One year from the day
@@ -170,7 +197,7 @@ const Lines = () => {
               <td>{format(line.start.toDate(), "yyyy-MM-dd")}</td>
               <td>{format(line.end.toDate(), "yyyy-MM-dd")}</td>
               <td>
-                <button>Edit</button>
+                <button onClick={() => deleteLine(line.id)}>Remove</button>
               </td>
             </tr>
           ))}
@@ -178,7 +205,7 @@ const Lines = () => {
         <tfoot>
           <tr>
             <td>
-              <button>Add</button>
+              <button onClick={addLine}>Add</button>
             </td>
           </tr>
         </tfoot>

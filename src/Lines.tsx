@@ -12,6 +12,11 @@ import {
   deleteDoc,
   orderBy,
 } from "firebase/firestore";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import { format } from "date-fns";
 import {
   LineChart,
@@ -35,6 +40,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 interface ILine {
   id: string;
@@ -54,12 +60,16 @@ interface IDay {
 const Lines = () => {
   const [lines, setLines] = useState<ILine[]>();
   const [cal, setCal] = useState<IDay>({});
+  const [user, setUser] = useState<string>("");
 
   const theDayDate = new Date();
   const today = new Date(new Date().toDateString());
   const firebaseDate = Timestamp.fromDate(theDayDate);
 
   let calendar: IDay = {};
+
+  const inputRefEmail = useRef<HTMLInputElement>(null);
+  const inputRefPassword = useRef<HTMLInputElement>(null);
 
   const inputRefName = useRef<HTMLInputElement>(null);
   const inputRefValue = useRef<HTMLInputElement>(null);
@@ -72,6 +82,7 @@ const Lines = () => {
 
     const q = query(
       collectionRef,
+      where("user", "==", user),
       where("end", ">=", firebaseDate),
       orderBy("end"),
       orderBy("value")
@@ -92,7 +103,7 @@ const Lines = () => {
 
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   function forEachDay(
     startDate: Date,
@@ -107,6 +118,40 @@ const Lines = () => {
       // Add one day and loop
       currentDate.setDate(currentDate.getDate() + 1);
     }
+  }
+
+  async function createUser() {
+    const email = inputRefEmail.current!.value;
+    const password = inputRefPassword.current!.value;
+
+    createUserWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        // Signed in
+        setUser(userCredential.user.uid);
+        console.log(userCredential.user);
+      })
+      .catch((error) => {
+        // const errorCode = error.code;
+        // const errorMessage = error.message;
+      });
+  }
+
+  async function login(event: { preventDefault: () => void }) {
+    event.preventDefault();
+
+    const email = inputRefEmail.current!.value;
+    const password = inputRefPassword.current!.value;
+
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        // Signed in
+        setUser(userCredential.user.uid);
+        console.log(userCredential.user);
+      })
+      .catch((error) => {
+        // const errorCode = error.code;
+        // const errorMessage = error.message;
+      });
   }
 
   async function deleteLine(ref: string) {
@@ -124,6 +169,7 @@ const Lines = () => {
       inputRefEnd.current?.value
     ) {
       const data = {
+        user: user,
         name: inputRefName.current?.value,
         value: inputRefValue.current?.value,
         times_per_year: inputRefTimes.current?.value,
@@ -185,8 +231,24 @@ const Lines = () => {
     };
   });
 
+  if (!user) {
+    return (
+      <div>
+        <form>
+          <input type="email" name="email" ref={inputRefEmail} />
+          <input type="password" name="password" ref={inputRefPassword} />
+          <button onClick={login}>Login</button>
+          <button type="button" onClick={createUser}>
+            Create user
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div>
+      User: {user}
       <LineChart width={850} height={200} data={data}>
         <CartesianGrid stroke="#ccc" />
         <XAxis dataKey="name" fontSize={10} />
@@ -195,7 +257,6 @@ const Lines = () => {
         <Line type="stepAfter" dataKey="added" strokeWidth={2} />
       </LineChart>
       <h2>{format(theDayDate, "yyyy-MM-dd")}</h2>
-
       <form onSubmit={addLine}>
         <table
           style={{
@@ -288,7 +349,6 @@ const Lines = () => {
           </tfoot>
         </table>
       </form>
-
       {cal[format(theDayDate, "yyyy-MM-dd")] && (
         <div>
           Totalt: {cal[format(theDayDate, "yyyy-MM-dd")].sum.toFixed(2)} kr/dag

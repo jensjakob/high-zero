@@ -159,6 +159,7 @@ const Lines = () => {
 
       for (const line of lines) {
         const dayValue = (line.value * line.times_per_year) / 365;
+        // TODO: Support one time payments
 
         forEachDay(today, line.end.toDate(), (date) => {
           if (line.start.toDate() <= date) {
@@ -186,7 +187,7 @@ const Lines = () => {
 
   return (
     <div>
-      <LineChart width={600} height={200} data={data}>
+      <LineChart width={850} height={200} data={data}>
         <CartesianGrid stroke="#ccc" />
         <XAxis dataKey="name" fontSize={10} />
         <YAxis fontSize={10} />
@@ -254,6 +255,7 @@ const Lines = () => {
                   <option value="4">kvartal</option>
                   <option value="3">4:e månad</option>
                   <option value="1">per år</option>
+                  {/* TODO: <option value="">engångsköp</option> */}
                 </select>
               </td>
               <td>

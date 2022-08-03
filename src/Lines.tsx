@@ -49,6 +49,7 @@ interface ILine {
   times_per_year: number;
   start: Timestamp;
   end: Timestamp;
+  per_day?: number;
 }
 
 interface IDay {
@@ -203,6 +204,17 @@ const Lines = () => {
         };
       });
 
+      const linesWithDay = lines.map((line) => {
+        const perDay: number = Math.round(
+          (line.times_per_year * line.value) / 365
+        );
+        return { ...line, per_day: perDay };
+      });
+
+      linesWithDay.sort((a, b) => a.per_day - b.per_day);
+
+      setLines(linesWithDay);
+
       for (const line of lines) {
         const dayValue = (line.value * line.times_per_year) / 365;
         // TODO: Support one time payments
@@ -257,12 +269,17 @@ const Lines = () => {
         <Line type="stepAfter" dataKey="added" strokeWidth={2} />
       </LineChart>
       <h2>{format(theDayDate, "yyyy-MM-dd")}</h2>
+      {cal[format(theDayDate, "yyyy-MM-dd")] && (
+        <div>
+          Totalt: {cal[format(theDayDate, "yyyy-MM-dd")].sum.toFixed(2)} kr/dag
+        </div>
+      )}
       <form onSubmit={addLine}>
         <table
           style={{
             width: "auto",
             border: "solid 1px white",
-            borderSpacing: "20px",
+            borderSpacing: "10px",
           }}
         >
           <thead>
@@ -270,6 +287,7 @@ const Lines = () => {
               <th>Status</th>
               <th>Name</th>
               <th>kr/day</th>
+              <th>calc</th>
               <th>Start</th>
               <th>End</th>
             </tr>
@@ -279,9 +297,15 @@ const Lines = () => {
               <tr key={line.id}>
                 <td>{line.start.toDate() > theDayDate ? "WAIT 🚫" : ""}</td>
                 <td>{line.name}</td>
+                <td
+                  style={{
+                    textAlign: "right",
+                  }}
+                >
+                  {line.per_day} kr
+                </td>
                 <td>
-                  {Math.round((line.times_per_year * line.value) / 365)} kr (
-                  {Math.round(line.value).toString()} kr ×{line.times_per_year})
+                  {Math.round(line.value).toString()} kr ×{line.times_per_year}
                 </td>
                 <td>{format(line.start.toDate(), "yyyy-MM-dd")}</td>
                 <td>{format(line.end.toDate(), "yyyy-MM-dd")}</td>
@@ -311,6 +335,8 @@ const Lines = () => {
                   defaultValue="100"
                   ref={inputRefValue}
                 />
+              </td>
+              <td>
                 <select name="times_per_year" ref={inputRefTimes}>
                   <option value="12">månadsvis</option>
                   <option value="4">kvartal</option>
@@ -349,11 +375,6 @@ const Lines = () => {
           </tfoot>
         </table>
       </form>
-      {cal[format(theDayDate, "yyyy-MM-dd")] && (
-        <div>
-          Totalt: {cal[format(theDayDate, "yyyy-MM-dd")].sum.toFixed(2)} kr/dag
-        </div>
-      )}
     </div>
   );
 };

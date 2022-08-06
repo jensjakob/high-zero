@@ -10,13 +10,7 @@ import {
   doc,
   addDoc,
   deleteDoc,
-  orderBy,
 } from "firebase/firestore";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
 import { format } from "date-fns";
 import {
   LineChart,
@@ -37,19 +31,14 @@ const firebaseConfig = {
   appId: "1:1026053235805:web:fdf867b24d2b63951319b4",
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
 interface ILine {
   id: string;
   name: string;
   value: number;
   times_per_year: number;
+  value_per_day: number;
   start: Timestamp;
   end: Timestamp;
-  per_day?: number;
 }
 
 interface IDay {
@@ -58,53 +47,27 @@ interface IDay {
   };
 }
 
-const Lines = () => {
+const theDayDate = new Date();
+const today = new Date(new Date().toDateString());
+const firebaseDate = Timestamp.fromDate(theDayDate);
+
+const Lines = (props: { user: String }) => {
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
   const [lines, setLines] = useState<ILine[]>();
   const [cal, setCal] = useState<IDay>({});
-  const [user, setUser] = useState<string>("");
 
-  const theDayDate = new Date();
-  const today = new Date(new Date().toDateString());
-  const firebaseDate = Timestamp.fromDate(theDayDate);
+  const user = props.user;
 
   let calendar: IDay = {};
-
-  const inputRefEmail = useRef<HTMLInputElement>(null);
-  const inputRefPassword = useRef<HTMLInputElement>(null);
 
   const inputRefName = useRef<HTMLInputElement>(null);
   const inputRefValue = useRef<HTMLInputElement>(null);
   const inputRefTimes = useRef<HTMLSelectElement>(null);
   const inputRefStart = useRef<HTMLInputElement>(null);
   const inputRefEnd = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const collectionRef = collection(db, "lines");
-
-    const q = query(
-      collectionRef,
-      where("user", "==", user),
-      where("end", ">=", firebaseDate),
-      orderBy("end"),
-      orderBy("value")
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) =>
-      setLines(
-        snapshot.docs.map((doc) => ({
-          id: doc.id,
-          name: doc.data().name,
-          value: doc.data().value,
-          times_per_year: doc.data().times_per_year,
-          start: doc.data().start,
-          end: doc.data().end,
-        }))
-      )
-    );
-
-    return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
 
   function forEachDay(
     startDate: Date,
@@ -121,42 +84,8 @@ const Lines = () => {
     }
   }
 
-  async function createUser() {
-    const email = inputRefEmail.current!.value;
-    const password = inputRefPassword.current!.value;
-
-    createUserWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        // Signed in
-        setUser(userCredential.user.uid);
-        console.log(userCredential.user);
-      })
-      .catch((error) => {
-        // const errorCode = error.code;
-        // const errorMessage = error.message;
-      });
-  }
-
-  async function login(event: { preventDefault: () => void }) {
-    event.preventDefault();
-
-    const email = inputRefEmail.current!.value;
-    const password = inputRefPassword.current!.value;
-
-    signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        // Signed in
-        setUser(userCredential.user.uid);
-        console.log(userCredential.user);
-      })
-      .catch((error) => {
-        // const errorCode = error.code;
-        // const errorMessage = error.message;
-      });
-  }
-
   async function deleteLine(ref: string) {
-    await deleteDoc(doc(db, "lines", ref));
+    await deleteDoc(doc(db, `userdata/${user}/lines`, ref));
   }
 
   async function addLine(event: { preventDefault: () => void }) {
@@ -170,7 +99,6 @@ const Lines = () => {
       inputRefEnd.current?.value
     ) {
       const data = {
-        user: user,
         name: inputRefName.current?.value,
         value: inputRefValue.current?.value,
         times_per_year: inputRefTimes.current?.value,
@@ -181,8 +109,7 @@ const Lines = () => {
       console.debug(data);
 
       try {
-        // const docRef = await addDoc(collection(db, "lines"), {
-        await addDoc(collection(db, "lines"), data);
+        await addDoc(collection(db, `userdata/${user}/lines`), data);
         // console.log("Document written with ID: ", docRef.id);
       } catch (e) {
         console.error("Error adding document: ", e);
@@ -191,7 +118,37 @@ const Lines = () => {
   }
 
   useEffect(() => {
+    const collectionRef = collection(db, "userdata", `${user}/lines`);
+
+    const q = query(collectionRef, where("end", ">=", firebaseDate));
+
+    onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => {
+        const valuePerDay =
+          (doc.data().times_per_year * doc.data().value) / 365;
+
+        return {
+          id: doc.id,
+          name: doc.data().name,
+          value: doc.data().value,
+          times_per_year: doc.data().times_per_year,
+          value_per_day: valuePerDay,
+          start: doc.data().start,
+          end: doc.data().end,
+        };
+      });
+      data.sort((a, b) => a.value_per_day - b.value_per_day);
+
+      console.debug(data);
+      setLines(data);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  //lines
+  useEffect(() => {
     if (lines) {
+      // TODO: Needed?
       // One year from the day
       let endDate = new Date(
         new Date().setFullYear(new Date().getFullYear() + 1)
@@ -203,17 +160,6 @@ const Lines = () => {
           sum: 0,
         };
       });
-
-      const linesWithDay = lines.map((line) => {
-        const perDay: number = Math.round(
-          (line.times_per_year * line.value) / 365
-        );
-        return { ...line, per_day: perDay };
-      });
-
-      linesWithDay.sort((a, b) => a.per_day - b.per_day);
-
-      setLines(linesWithDay);
 
       for (const line of lines) {
         const dayValue = (line.value * line.times_per_year) / 365;
@@ -242,21 +188,6 @@ const Lines = () => {
       added: added,
     };
   });
-
-  if (!user) {
-    return (
-      <div>
-        <form>
-          <input type="email" name="email" ref={inputRefEmail} />
-          <input type="password" name="password" ref={inputRefPassword} />
-          <button onClick={login}>Login</button>
-          <button type="button" onClick={createUser}>
-            Create user
-          </button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -302,14 +233,42 @@ const Lines = () => {
                     textAlign: "right",
                   }}
                 >
-                  {line.per_day} kr
+                  {line.value_per_day.toFixed(2)} kr
                 </td>
                 <td>
-                  {Math.round(line.value).toString()} kr ×{line.times_per_year}
+                  {Math.round(line.value).toString()} kr &times;
+                  {line.times_per_year}
                 </td>
                 <td>{format(line.start.toDate(), "yyyy-MM-dd")}</td>
                 <td>{format(line.end.toDate(), "yyyy-MM-dd")}</td>
                 <td>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        inputRefName.current?.value &&
+                        inputRefValue.current?.value &&
+                        inputRefTimes.current?.value &&
+                        inputRefStart.current?.value &&
+                        inputRefEnd.current?.value
+                      ) {
+                        inputRefName.current.value = line.name;
+                        inputRefValue.current.value = line.value.toString();
+                        inputRefTimes.current.value =
+                          line.times_per_year.toString();
+                        inputRefStart.current.value = format(
+                          line.start.toDate(),
+                          "yyyy-MM-dd"
+                        );
+                        inputRefEnd.current.value = format(
+                          line.end.toDate(),
+                          "yyyy-MM-dd"
+                        );
+                      }
+                    }}
+                  >
+                    Edit
+                  </button>
                   <button type="button" onClick={() => deleteLine(line.id)}>
                     X
                   </button>

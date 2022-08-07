@@ -11,7 +11,7 @@ import {
   addDoc,
   deleteDoc,
 } from "firebase/firestore";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import {
   LineChart,
   Line,
@@ -124,8 +124,18 @@ const Lines = (props: { user: String }) => {
 
     onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => {
-        const valuePerDay =
-          (doc.data().times_per_year * doc.data().value) / 365;
+        let valuePerDay;
+
+        if (doc.data().times_per_year === "0") {
+          const diff = differenceInDays(
+            doc.data().end.toDate(),
+            doc.data().start.toDate()
+          );
+
+          valuePerDay = doc.data().value / diff;
+        } else {
+          valuePerDay = (doc.data().times_per_year * doc.data().value) / 365;
+        }
 
         return {
           id: doc.id,
@@ -137,6 +147,7 @@ const Lines = (props: { user: String }) => {
           end: doc.data().end,
         };
       });
+
       data.sort((a, b) => a.value_per_day - b.value_per_day);
 
       console.debug(data);
@@ -301,7 +312,7 @@ const Lines = (props: { user: String }) => {
                   <option value="4">kvartal</option>
                   <option value="3">4:e månad</option>
                   <option value="1">per år</option>
-                  {/* TODO: <option value="">engångsköp</option> */}
+                  <option value="0">engångsköp</option>
                 </select>
               </td>
               <td>

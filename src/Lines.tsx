@@ -106,8 +106,6 @@ const Lines = (props: { user: String }) => {
         end: new Date(inputRefEnd.current?.value),
       };
 
-      console.debug(data);
-
       try {
         await addDoc(collection(db, `userdata/${user}/lines`), data);
         // console.log("Document written with ID: ", docRef.id);
@@ -150,7 +148,6 @@ const Lines = (props: { user: String }) => {
 
       data.sort((a, b) => a.value_per_day - b.value_per_day);
 
-      console.debug(data);
       setLines(data);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,6 +173,7 @@ const Lines = (props: { user: String }) => {
         forEachDay(today, line.end.toDate(), (date) => {
           if (line.start.toDate() <= date && endDate >= date) {
             const oldValue = calendar[format(date, "yyyy-MM-dd")].sum;
+
             calendar[format(date, "yyyy-MM-dd")] = {
               sum: line.value_per_day + oldValue,
             };

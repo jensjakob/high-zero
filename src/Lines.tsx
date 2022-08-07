@@ -174,7 +174,7 @@ const Lines = (props: { user: String }) => {
 
       for (const line of lines) {
         forEachDay(today, line.end.toDate(), (date) => {
-          if (line.start.toDate() <= date) {
+          if (line.start.toDate() <= date && endDate >= date) {
             const oldValue = calendar[format(date, "yyyy-MM-dd")].sum;
             calendar[format(date, "yyyy-MM-dd")] = {
               sum: line.value_per_day + oldValue,

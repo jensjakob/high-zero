@@ -173,13 +173,12 @@ const Lines = (props: { user: String }) => {
       });
 
       for (const line of lines) {
-        const dayValue = (line.value * line.times_per_year) / 365;
-        // TODO: Support one time payments
-
         forEachDay(today, line.end.toDate(), (date) => {
           if (line.start.toDate() <= date) {
             const oldValue = calendar[format(date, "yyyy-MM-dd")].sum;
-            calendar[format(date, "yyyy-MM-dd")] = { sum: dayValue + oldValue };
+            calendar[format(date, "yyyy-MM-dd")] = {
+              sum: line.value_per_day + oldValue,
+            };
           }
         });
 

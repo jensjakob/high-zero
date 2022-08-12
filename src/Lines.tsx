@@ -11,7 +11,7 @@ import {
   addDoc,
   deleteDoc,
 } from "firebase/firestore";
-import { format, differenceInDays } from "date-fns";
+import { differenceInDays } from "date-fns";
 import {
   LineChart,
   Line,
@@ -50,6 +50,11 @@ interface IDay {
 const theDayDate = new Date();
 const today = new Date(new Date().toDateString());
 const firebaseDate = Timestamp.fromDate(theDayDate);
+
+// Date as Year Month Day (YMD) string in the format of "yyyy-MM-dd"
+function ymd(date: Date) {
+  return date.toLocaleDateString("sv-SE");
+}
 
 const Lines = (props: { user: String }) => {
   // Initialize Firebase
@@ -164,7 +169,7 @@ const Lines = (props: { user: String }) => {
 
       // Initiate all days in the right order
       forEachDay(theDayDate, endDate, (currentDate) => {
-        calendar[format(currentDate, "yyyy-MM-dd")] = {
+        calendar[ymd(currentDate)] = {
           sum: 0,
         };
       });
@@ -172,9 +177,9 @@ const Lines = (props: { user: String }) => {
       for (const line of lines) {
         forEachDay(today, line.end.toDate(), (date) => {
           if (line.start.toDate() <= date && endDate >= date) {
-            const oldValue = calendar[format(date, "yyyy-MM-dd")].sum;
+            const oldValue = calendar[ymd(date)].sum;
 
-            calendar[format(date, "yyyy-MM-dd")] = {
+            calendar[ymd(date)] = {
               sum: line.value_per_day + oldValue,
             };
           }
@@ -207,11 +212,9 @@ const Lines = (props: { user: String }) => {
         <Tooltip />
         <Line type="stepAfter" dataKey="added" strokeWidth={2} />
       </LineChart>
-      <h2>{format(theDayDate, "yyyy-MM-dd")}</h2>
-      {cal[format(theDayDate, "yyyy-MM-dd")] && (
-        <div>
-          Totalt: {cal[format(theDayDate, "yyyy-MM-dd")].sum.toFixed(2)} kr/dag
-        </div>
+      <h2>{ymd(theDayDate)}</h2>
+      {cal[ymd(theDayDate)] && (
+        <div>Totalt: {cal[ymd(theDayDate)].sum.toFixed(2)} kr/dag</div>
       )}
       <form onSubmit={addLine}>
         <table
@@ -247,8 +250,8 @@ const Lines = (props: { user: String }) => {
                   {Math.round(line.value).toString()} kr &times;
                   {line.times_per_year}
                 </td>
-                <td>{format(line.start.toDate(), "yyyy-MM-dd")}</td>
-                <td>{format(line.end.toDate(), "yyyy-MM-dd")}</td>
+                <td>{ymd(line.start.toDate())}</td>
+                <td>{ymd(line.end.toDate())}</td>
                 <td>
                   <button
                     type="button"
@@ -264,14 +267,8 @@ const Lines = (props: { user: String }) => {
                         inputRefValue.current.value = line.value.toString();
                         inputRefTimes.current.value =
                           line.times_per_year.toString();
-                        inputRefStart.current.value = format(
-                          line.start.toDate(),
-                          "yyyy-MM-dd"
-                        );
-                        inputRefEnd.current.value = format(
-                          line.end.toDate(),
-                          "yyyy-MM-dd"
-                        );
+                        inputRefStart.current.value = ymd(line.start.toDate());
+                        inputRefEnd.current.value = ymd(line.end.toDate());
                       }
                     }}
                   >
@@ -316,11 +313,11 @@ const Lines = (props: { user: String }) => {
                 <input
                   type="date"
                   name="start"
-                  defaultValue={format(
+                  defaultValue={ymd(
                     new Date(new Date().getFullYear(), 0, 1),
                     "yyyy-MM-dd"
                   )}
-                  // defaultValue={format(theDayDate, "yyyy-MM-dd")}
+                  // defaultValue={ymd(theDayDate)}
                   ref={inputRefStart}
                 />
               </td>
@@ -328,7 +325,7 @@ const Lines = (props: { user: String }) => {
                 <input
                   type="date"
                   name="end"
-                  defaultValue={format(
+                  defaultValue={ymd(
                     new Date(new Date().getFullYear(), 11, 31),
                     "yyyy-MM-dd"
                   )}

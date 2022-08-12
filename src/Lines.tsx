@@ -313,10 +313,7 @@ const Lines = (props: { user: String }) => {
                 <input
                   type="date"
                   name="start"
-                  defaultValue={ymd(
-                    new Date(new Date().getFullYear(), 0, 1),
-                    "yyyy-MM-dd"
-                  )}
+                  defaultValue={ymd(new Date(new Date().getFullYear(), 0, 1))}
                   // defaultValue={ymd(theDayDate)}
                   ref={inputRefStart}
                 />
@@ -325,10 +322,7 @@ const Lines = (props: { user: String }) => {
                 <input
                   type="date"
                   name="end"
-                  defaultValue={ymd(
-                    new Date(new Date().getFullYear(), 11, 31),
-                    "yyyy-MM-dd"
-                  )}
+                  defaultValue={ymd(new Date(new Date().getFullYear(), 11, 31))}
                   ref={inputRefEnd}
                 />
               </td>

@@ -72,9 +72,21 @@ const UserArea = (props: { onLogin: (user: string) => void }) => {
   return (
     <div>
       <form>
-        <input type="email" name="email" ref={inputRefEmail} />
-        <input type="password" name="password" ref={inputRefPassword} />
-        <button onClick={login}>Login</button>
+        <input
+          type="email"
+          name="email"
+          ref={inputRefEmail}
+          autoComplete="email"
+        />
+        <input
+          type="password"
+          name="password"
+          ref={inputRefPassword}
+          autoComplete="current-password"
+        />
+        <button type="submit" onClick={login}>
+          Login
+        </button>
         <button type="button" onClick={createUser}>
           Create user
         </button>
